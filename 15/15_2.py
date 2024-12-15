@@ -1,4 +1,4 @@
-with open('15/example.txt', 'r') as f:
+with open('15/input.txt', 'r') as f:
     input_str = f.read().strip()
 
 warehouse = [[y for y in x] for x in input_str.split('\n\n')[0].split('\n')]
@@ -29,72 +29,109 @@ for i in range(len(warehouse)):
 warehouse = new_warehouse
 
 robot = [0, 0]
-boxes = []
-walls = []
-h = len(warehouse)
-w = len(warehouse[0])
 
-# find robot and boxes
-for i in range(h):
-    for j in range(w):
+
+# find robot
+for i in range(len(warehouse)):
+    if robot != [0, 0]:
+        break
+    for j in range(len(warehouse[i])):
         if warehouse[i][j] == '@':
             robot = [i, j]
-        elif warehouse[i][j] == '[':
-            boxes.append([i, j])
-        elif warehouse[i][j] == '#':
-            walls.append([i, j])
+            break
 
 
-def draw_map():
-    wh = []
-    for _ in range(h):
-        line = []
-        for __ in range(w):
-            line.append('.')
-        wh.append(line)
-    wh[robot[0]][robot[1]] = '@'
-    for wall in walls:
-        wh[wall[0]][wall[1]] = '#'
-    for b in boxes:
-        wh[b[0]][b[1]] = '['
-        wh[b[0]][b[1] + 1] = ']'
-    return wh
-
-
-def move_boxes(i, j, d):
-    if d in '<>':
-        while warehouse[i][j] != '#' and warehouse[i][j] != '.':
-            j += dirs[d][1]
-        if warehouse[i][j] == '#':
-            return
-        temp_target_boxes = [k for k, x in enumerate(boxes) if x[0] == i]
-        target_boxes = []
-        for b in temp_target_boxes:
-            pass
-        for k in target_boxes:
-            boxes[k][1] += dirs[d][1]
-        robot[1] += dirs[d][1]
-        return
+def check_vertical(i, j, d):
+    if warehouse[i][j] == '[':
+        bli, blj = i, j
+        bri, brj = i, j + 1
     else:
-        pass
+        bli, blj = i, j - 1
+        bri, brj = i, j
+    left = warehouse[bli + d][blj]
+    right = warehouse[bri + d][brj]
+    if left == '#' or right == '#':
+        return False
+    if left == '.' and right == '.':
+        return True
+    if left == '[':
+        if check_vertical(bli + d, blj, d):
+            return True
+    lc = left == '.'
+    rc = right == '.'
+    if not lc:
+        lc = check_vertical(bli + d, blj, d)
+    if not rc:
+        rc = check_vertical(bri + d, brj, d)
+    return lc and rc
 
 
+def move_vertical(i, j, d):
+    if warehouse[i][j] == '[':
+        bli, blj = i, j
+        bri, brj = i, j + 1
+    else:
+        bli, blj = i, j - 1
+        bri, brj = i, j
+    left = warehouse[bli + d][blj]
+    right = warehouse[bri + d][brj]
+    if left == '[':
+        move_vertical(bli + d, blj, d)
+        warehouse[bli + d][blj] = '['
+        warehouse[bri + d][brj] = ']'
+        warehouse[bli][blj] = '.'
+        warehouse[bri][brj] = '.'
+        return
+    lc = left == '.'
+    rc = right == '.'
+    if not lc:
+        move_vertical(bli + d, blj, d)
+    if not rc:
+        move_vertical(bri + d, brj, d)
+    warehouse[bli + d][blj] = '['
+    warehouse[bri + d][brj] = ']'
+    warehouse[bli][blj] = '.'
+    warehouse[bri][brj] = '.'
+    return
+    
+    
+def move_box(i, j, d):
+    if d in '<>':
+        move = dirs[d][1]
+        while warehouse[i][j] != '#' and warehouse[i][j] != '.':
+            j += move
+        if warehouse[i][j] == '#':
+            return False
+        while warehouse[i][j - move] != '@':
+            warehouse[i][j] = warehouse[i][j - move]
+            j -= move
+        warehouse[i][j] = '.'
+        robot[1] += move
+        return True
+    else:
+        move = dirs[d][0]
+        if check_vertical(i, j, move):
+            move_vertical(i, j, move)
+            return True
+        return False
     
 
-
-    
 # move robot
 for m in movements:
     i, j = robot[0], robot[1]
     next_i, next_j = i + dirs[m][0], j + dirs[m][1]
     if warehouse[next_i][next_j] == '.':
         robot = [next_i, next_j]
-        warehouse = draw_map()
+        warehouse[next_i][next_j] = '@'
+        warehouse[i][j] = '.'
     elif warehouse[next_i][next_j] == '#':
         continue
     elif warehouse[next_i][next_j] in '[]':
-        move_boxes(i, j, m)
-        warehouse = draw_map()
+        if move_box(next_i, next_j, m):
+            robot = [next_i, next_j]
+            warehouse[next_i][next_j] = '@'
+            warehouse[i][j] = '.'
+
 
 # calculate result
 result = 0
